@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 using namespace std;
 
@@ -247,10 +248,15 @@ void drawDiagonalLines(int rows, int cols){
 int main(int argc, char* argv[]) {
     char* fileBuffer;
     int bufferSize;
+
+    auto exec_start = chrono::high_resolution_clock::now();
+
     if (!fillAndAllocate(fileBuffer, argv[1], rows, cols, bufferSize)) {
         std::cout << "File read error" << std::endl;
         return 1;
     }
+
+    auto fp_time = chrono::high_resolution_clock::now();
 
     //Store each channel seperately
     redChannel.resize(rows, vector<unsigned char>(cols));
@@ -259,13 +265,37 @@ int main(int argc, char* argv[]) {
 
     // read input file
     getPixelsFromBMP24(fileLength, rows, cols, fileBuffer);
+
+    auto read_end = chrono::high_resolution_clock::now();
+
     // apply filters
     verticalMirror(rows, cols);
+    auto flip_end = chrono::high_resolution_clock::now();
+
     applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef);
+    auto kernel_end = chrono::high_resolution_clock::now();
+
     purpleHaze(rows, cols);
+    auto haze_end = chrono::high_resolution_clock::now();
+
     drawDiagonalLines(rows, cols);
+    auto draw_end = chrono::high_resolution_clock::now();
+
     // write output file
     writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
+    auto write_end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> read_time = read_end - fp_time;
+    chrono::duration<double, milli> flip_time = flip_end - read_end;
+    chrono::duration<double, milli> kernel_time = kernel_end - flip_end;
+    chrono::duration<double, milli> haze_time = haze_end - kernel_end;
+    chrono::duration<double, milli> draw_time = draw_end - haze_end;
+    chrono::duration<double, milli> write_time = write_end - draw_end;
+    chrono::duration<double, milli> total_time = write_end - exec_start;
+
+    cout << "Read : " << read_time.count() << " ms" << endl << "Flip : " << flip_time.count() << " ms" << endl
+        << "Blur : " << kernel_time.count() << " ms" << endl << "Purple : " << haze_time.count() << " ms" << endl
+        << "Lines : " << draw_time.count() << " ms" << endl << "Execution : " << total_time.count() << " ms" << endl;
 
     return 0;
 }
