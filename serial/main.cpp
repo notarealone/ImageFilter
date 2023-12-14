@@ -162,6 +162,29 @@ void verticalMirror(int rows, int cols){
     }
 }
 
+void edgeHandler(int rows, int cols){
+    for(int i = 0; i < rows; i++){
+        if(i == 0){
+            redChannel[i] = redChannel[i+1];
+            greenChannel[i] = greenChannel[i+1];
+            blueChannel[i] = blueChannel[i+1];
+        }
+        else if(i == rows-1){
+            redChannel[i] = redChannel[i-1];
+            greenChannel[i] = greenChannel[i-1];
+            blueChannel[i] = blueChannel[i-1];
+        }
+        else {
+            redChannel[i][0] = redChannel[i][1];
+            redChannel[i][cols-1] = redChannel[i][cols-2];
+            greenChannel[i][0] = greenChannel[i][1];
+            greenChannel[i][cols-1] = greenChannel[i][cols-2];
+            blueChannel[i][0] = blueChannel[i][1];
+            blueChannel[i][cols-1] = blueChannel[i][cols-2];
+        }
+    }
+}
+
 //function written with a 3*3 kernel in mind
 void applyKernel(int rows, int cols, int kernel[3][3], float norm){
     
@@ -190,6 +213,7 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm){
             blueChannel[i][j] = static_cast<unsigned char>(sumBlue);
         }
     }
+    //edgeHandler(rows, cols);
 }
 
 
