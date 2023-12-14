@@ -1,5 +1,8 @@
 #include <fstream>
 #include <iostream>
+#include <vector>
+
+using namespace std;
 
 typedef int LONG;
 typedef unsigned short WORD;
@@ -31,6 +34,11 @@ typedef struct tagBITMAPINFOHEADER {
 
 int rows;
 int cols;
+long fileLength; //total length of the bmp file
+
+vector<vector<unsigned char>> redChannel;
+vector<vector<unsigned char>> greenChannel;
+vector<vector<unsigned char>> blueChannel;
 
 bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, int& bufferSize) {
     std::ifstream file(fileName);
@@ -42,7 +50,7 @@ bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, 
     file.seekg(0, std::ios::end);
     std::streampos length = file.tellg();
     file.seekg(0, std::ios::beg);
-
+    fileLength = length;
     buffer = new char[length];
     file.read(&buffer[0], length);
 
@@ -67,14 +75,18 @@ void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
                 switch (k) {
                 case 0:
                     // fileReadBuffer[end - count] is the red value
+                    redChannel[i][j] = fileReadBuffer[end - count];
                     break;
                 case 1:
+                    greenChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the green value
                     break;
                 case 2:
+                    blueChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the blue value
                     break;
                 }
+                count++;
                 // go to the next position in the buffer
             }
         }
@@ -92,19 +104,23 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
     int extra = cols % 4;
     for (int i = 0; i < rows; i++) {
         count += extra;
-        for (int j = cols - 1; j >= 0; j--) {
+        for (int j = cols - 1; j >= 0; j--) {   
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
+                    fileBuffer[bufferSize - count] = redChannel[i][j];
                     // write red value in fileBuffer[bufferSize - count]
                     break;
                 case 1:
+                    fileBuffer[bufferSize - count] = greenChannel[i][j];
                     // write green value in fileBuffer[bufferSize - count]
                     break;
                 case 2:
+                    fileBuffer[bufferSize - count] = blueChannel[i][j];
                     // write blue value in fileBuffer[bufferSize - count]
                     break;
                 }
+                count++;
                 // go to the next position in the buffer
             }
         }
@@ -119,6 +135,11 @@ int main(int argc, char* argv[]) {
         std::cout << "File read error" << std::endl;
         return 1;
     }
+
+    //Store each channel seperately
+    redChannel.resize(rows, vector<unsigned char>(cols));
+    greenChannel.resize(rows, vector<unsigned char>(cols));
+    blueChannel.resize(rows, vector<unsigned char>(cols));
 
     // read input file
     // apply filters
