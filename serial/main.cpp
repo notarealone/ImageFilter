@@ -128,6 +128,36 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
     write.write(fileBuffer, bufferSize);
 }
 
+
+void verticalMirror(int rows, int cols){
+    
+    unsigned char temp;
+
+    for (int i = 0; i < (rows/2) ; i++) {
+        for (int j = 0; j < cols; j++) {   
+            for(int k = 0; k < 3; k++){
+                switch (k) {
+                    case 0:
+                        temp = redChannel[i][j];
+                        redChannel[i][j] = redChannel[rows - i - 1][j];
+                        redChannel[rows - i - 1][j] = temp;
+                        break;
+                    case 1:
+                        temp = greenChannel[i][j];
+                        greenChannel[i][j] = greenChannel[rows - i - 1][j];
+                        greenChannel[rows - i -1][j] = temp;
+                        break;
+                    case 2:
+                        temp = blueChannel[i][j];
+                        blueChannel[i][j] = blueChannel[rows - i - 1][j];
+                        blueChannel[rows - i - 1][j] = temp;
+                        break;
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     char* fileBuffer;
     int bufferSize;
@@ -142,8 +172,11 @@ int main(int argc, char* argv[]) {
     blueChannel.resize(rows, vector<unsigned char>(cols));
 
     // read input file
+    getPixelsFromBMP24(fileLength, rows, cols, fileBuffer);
     // apply filters
+    verticalMirror(rows, cols);
     // write output file
+    writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
 
     return 0;
 }
