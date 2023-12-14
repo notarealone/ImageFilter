@@ -207,6 +207,19 @@ void purpleHaze(int rows, int cols){
 }
 
 
+void drawDiagonalLines(int rows, int cols){
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            if((i+j == rows) || (i+j == rows/2) || (i+j == rows + rows/2)){
+                // white color code -> 255
+                redChannel[i][j] = 255;
+                greenChannel[i][j] = 255;
+                blueChannel[i][j] = 255;
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     char* fileBuffer;
     int bufferSize;
@@ -226,6 +239,7 @@ int main(int argc, char* argv[]) {
     verticalMirror(rows, cols);
     applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef);
     purpleHaze(rows, cols);
+    drawDiagonalLines(rows, cols);
     // write output file
     writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
 
