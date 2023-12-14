@@ -32,6 +32,10 @@ typedef struct tagBITMAPINFOHEADER {
 } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
 #pragma pack(pop)
 
+//Declaring a filter for furthur use
+int gaussianBlur[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+float gaussianBlurCoef = 0.0625;
+
 int rows;
 int cols;
 long fileLength; //total length of the bmp file
@@ -145,7 +149,7 @@ void verticalMirror(int rows, int cols){
                     case 1:
                         temp = greenChannel[i][j];
                         greenChannel[i][j] = greenChannel[rows - i - 1][j];
-                        greenChannel[rows - i -1][j] = temp;
+                        greenChannel[rows - i - 1][j] = temp;
                         break;
                     case 2:
                         temp = blueChannel[i][j];
@@ -154,6 +158,36 @@ void verticalMirror(int rows, int cols){
                         break;
                 }
             }
+        }
+    }
+}
+
+//function written with a 3*3 kernel in mind
+void applyKernel(int rows, int cols, int kernel[3][3], float norm){
+    
+    //make a copy of current channels
+    vector<vector<unsigned char>> tempRed = redChannel, tempGreen = greenChannel, tempBlue = blueChannel;
+
+    for(int i = 1; i < rows - 1; i++){
+        for(int j = 1; j < cols - 1; j++){
+            float sumRed = 0, sumGreen = 0, sumBlue = 0;
+
+            for(int k = -1; k <= 1; k++){
+                for(int l = -1; l <= 1; l++){
+                    sumRed += tempRed[i + k][j + l] * kernel[k + 1][l + 1] * norm;
+                    sumGreen += tempGreen[i + k][j + l] * kernel[k + 1][l + 1] * norm;
+                    sumBlue += tempBlue[i + k][j + l] * kernel[k + 1][l + 1] * norm;
+                }
+            }
+
+            //Check if the output of filter is still in bounderies of our pixels colors
+            sumRed = (sumRed < 0) ? 0 : (sumRed > 255) ? 255 : (sumRed);
+            sumGreen = (sumGreen < 0) ? 0 : (sumGreen > 255) ? 255 : (sumGreen);
+            sumBlue = (sumBlue < 0) ? 0 : (sumBlue > 255) ? 255 : (sumBlue);
+            
+            redChannel[i][j] = static_cast<unsigned char>(sumRed);
+            greenChannel[i][j] = static_cast<unsigned char>(sumGreen);
+            blueChannel[i][j] = static_cast<unsigned char>(sumBlue);
         }
     }
 }
@@ -175,6 +209,7 @@ int main(int argc, char* argv[]) {
     getPixelsFromBMP24(fileLength, rows, cols, fileBuffer);
     // apply filters
     verticalMirror(rows, cols);
+    applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef);
     // write output file
     writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
 
