@@ -192,6 +192,21 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm){
     }
 }
 
+
+void purpleHaze(int rows, int cols){
+    vector<vector<unsigned char>> tempRed = redChannel, tempGreen = greenChannel, tempBlue = blueChannel;
+
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            //TO DO
+            redChannel[i][j] = min(255.0 , (0.5 * tempRed[i][j]) + (0.3 * tempGreen[i][j]) + (0.5 * tempBlue[i][j]));
+            greenChannel[i][j] = min(255.0, (0.16 * tempRed[i][j]) + (0.5 * tempGreen[i][j]) + (0.16 * tempBlue[i][j]));
+            blueChannel[i][j] = min(255.0 ,(0.6 * tempRed[i][j]) + (0.2 * tempGreen[i][j]) + (0.8 * tempBlue[i][j]));
+        }
+    }
+}
+
+
 int main(int argc, char* argv[]) {
     char* fileBuffer;
     int bufferSize;
@@ -210,6 +225,7 @@ int main(int argc, char* argv[]) {
     // apply filters
     verticalMirror(rows, cols);
     applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef);
+    purpleHaze(rows, cols);
     // write output file
     writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
 
