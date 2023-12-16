@@ -72,6 +72,12 @@ bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, 
     return true;
 }
 
+void allocChannels(){
+    Photo.redChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.greenChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.blueChannel.resize(rows, vector<unsigned char>(cols));
+}
+
 void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
     int count = 1;
     int extra = cols % 4;
@@ -142,9 +148,7 @@ int main(int argc, char* argv[]) {
     }
     
     //Store each channel seperately
-    Photo.redChannel.resize(rows, vector<unsigned char>(cols));
-    Photo.greenChannel.resize(rows, vector<unsigned char>(cols));
-    Photo.blueChannel.resize(rows, vector<unsigned char>(cols));
+    allocChannels();
     
     // read input file
     getPixelsFromBMP24(fileLength, rows, cols, Photo.fileBuffer);
