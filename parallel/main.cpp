@@ -335,7 +335,7 @@ int main(int argc, char* argv[]) {
 
     auto read_end = chrono::high_resolution_clock::now();
 
-    // flip the image and apply kernel
+    // flip the image
     for(int i = 0; i < NUM_OF_THREADS; i++){
         channels[i] = i;
         int thread_status = pthread_create(&threads[i], NULL, parallelFlip, (void*)&channels[i]);
@@ -350,6 +350,7 @@ int main(int argc, char* argv[]) {
 
     auto flip_end = chrono::high_resolution_clock::now();
 
+    // apply chosen Kernel
     for(int i = 0; i < NUM_OF_THREADS; i++){
         channels[i] = i;
         int thread_status = pthread_create(&threads[i], NULL, parallelKernel, (void*)&channels[i]);
