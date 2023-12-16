@@ -1,6 +1,12 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <chrono>
+
+#define NUM_OF_THREADS 3
+#define RED 0
+#define GREEN 1
+#define BLUE 2
 
 using namespace std;
 
@@ -78,32 +84,36 @@ void allocChannels(){
     Photo.blueChannel.resize(rows, vector<unsigned char>(cols));
 }
 
-void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
-    int count = 1;
+void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer, int channel) {
+    int count = (channel == 0) ? 1 : (channel == 1) ? 2 : 3;
     int extra = cols % 4;
     for (int i = 0; i < rows; i++) {
         count += extra;
         for (int j = cols - 1; j >= 0; j--) {
-            for (int k = 0; k < 3; k++) {
-                switch (k) {
-                case 0:
+                switch (channel) {
+                case RED:
                     // fileReadBuffer[end - count] is the red value
                     Photo.redChannel[i][j] = fileReadBuffer[end - count];
                     break;
-                case 1:
+                case GREEN:
                     Photo.greenChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the green value
                     break;
-                case 2:
+                case BLUE:
                     Photo.blueChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the blue value
                     break;
                 }
-                count++;
+                count += 3;
                 // go to the next position in the buffer
-            }
         }
     }
+}
+
+void* parallelRead(void* arg){
+    int channel_id = *((int*)arg);
+    getPixelsFromBMP24(fileLength, rows, cols, Photo.fileBuffer, channel_id);
+    pthread_exit(NULL);
 }
 
 void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferSize) {
@@ -142,6 +152,9 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
 }
 
 int main(int argc, char* argv[]) {
+    pthread_t threads[NUM_OF_THREADS];
+    vector<int> channels = {RED, GREEN, BLUE};
+
     if (!fillAndAllocate(Photo.fileBuffer, argv[1], rows, cols, Photo.bufferSize)) {
         std::cout << "File read error" << std::endl;
         return 1;
@@ -149,9 +162,20 @@ int main(int argc, char* argv[]) {
     
     //Store each channel seperately
     allocChannels();
-    
-    // read input file
-    getPixelsFromBMP24(fileLength, rows, cols, Photo.fileBuffer);
+
+    // read input file concurrently with 3 threads (one thread for each color channel)
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        channels[i] = i;
+        int thread_status = pthread_create(&threads[i], NULL, parallelRead, (void*)&channels[i]);
+        if(thread_status){
+            cerr << "Error: Unable to create thread " << endl;
+            return 1;
+        }
+    }
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
+
     // apply filters
     // write output file
     writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
