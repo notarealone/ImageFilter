@@ -286,6 +286,19 @@ void* parallelPuprleHaze(void* arg){
     pthread_exit(NULL);
 }
 
+void drawDiagonalLines(int rows, int cols){
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            if((i+j == rows) || (i+j == rows/2) || (i+j == rows + rows/2)){
+                // white color code -> 255
+                Photo.redChannel[i][j] = 255;
+                Photo.greenChannel[i][j] = 255;
+                Photo.blueChannel[i][j] = 255;
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     pthread_t threads[NUM_OF_THREADS];
     vector<int> channels = {RED, GREEN, BLUE};
@@ -344,9 +357,9 @@ int main(int argc, char* argv[]) {
     for(int i = 0; i < NUM_OF_THREADS; i++){
         pthread_join(threads[i], NULL);
     }
-
-
-    // write output file
+    // draw diagonal lines (No parallelism in this part)
+    drawDiagonalLines(rows, cols);
+    // write output file (No parallelism in this part)
     writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
 
     return 0;
