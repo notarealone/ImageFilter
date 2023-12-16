@@ -291,17 +291,31 @@ void* parallelPuprleHaze(void* arg){
     pthread_exit(NULL);
 }
 
-void drawDiagonalLines(int rows, int cols){
+void drawDiagonalLines(int rows, int cols, int channel){
     for(int i = 0; i < rows; i++){
         for(int j = 0; j < cols; j++){
             if((i+j == rows) || (i+j == rows/2) || (i+j == rows + rows/2)){
                 // white color code -> 255
-                Photo.redChannel[i][j] = 255;
-                Photo.greenChannel[i][j] = 255;
-                Photo.blueChannel[i][j] = 255;
+                switch(channel){
+                    case RED:
+                        Photo.redChannel[i][j] = 255;
+                    break;
+                    case GREEN:
+                        Photo.greenChannel[i][j] = 255;
+                    break;
+                    case BLUE:
+                        Photo.blueChannel[i][j] = 255;
+                    break;
+                    }
             }
         }
     }
+}
+
+void* parallelDraw(void* arg){
+    int channel_id = *((int*)arg);
+    drawDiagonalLines(rows, cols, channel_id);
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -388,8 +402,18 @@ int main(int argc, char* argv[]) {
 
     auto haze_end = chrono::high_resolution_clock::now();
 
-    // draw diagonal lines (No parallelism in this part)
-    drawDiagonalLines(rows, cols);
+    // draw diagonal lines 
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        channels[i] = i;
+        int thread_status = pthread_create(&threads[i], NULL, parallelDraw, (void*)&channels[i]);
+        if(thread_status){
+            cerr << "Error: Unable to create thread " << endl;
+            return 1;
+        }
+    }
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
 
     auto draw_end = chrono::high_resolution_clock::now();
 
