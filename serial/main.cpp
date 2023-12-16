@@ -214,7 +214,7 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm){
             blueChannel[i][j] = static_cast<unsigned char>(sumBlue);
         }
     }
-    //edgeHandler(rows, cols);
+    edgeHandler(rows, cols);
 }
 
 
@@ -224,9 +224,9 @@ void purpleHaze(int rows, int cols){
     for(int i = 0; i < rows; i++){
         for(int j = 0; j < cols; j++){
             //This formula is different that what the description said, but it works better!
-            blueChannel[i][j] = min(255.0 , (0.5 * tempRed[i][j]) + (0.3 * tempGreen[i][j]) + (0.5 * tempBlue[i][j]));
-            redChannel[i][j] = min(255.0, (0.16 * tempRed[i][j]) + (0.5 * tempGreen[i][j]) + (0.16 * tempBlue[i][j]));
-            greenChannel[i][j] = min(255.0 ,(0.6 * tempRed[i][j]) + (0.2 * tempGreen[i][j]) + (0.8 * tempBlue[i][j]));
+            redChannel[i][j] = min(255.0 , (0.5 * tempRed[i][j]) + (0.3 * tempGreen[i][j]) + (0.5 * tempBlue[i][j]));
+            greenChannel[i][j] = min(255.0, (0.16 * tempRed[i][j]) + (0.5 * tempGreen[i][j]) + (0.16 * tempBlue[i][j]));
+            blueChannel[i][j] = min(255.0 ,(0.6 * tempRed[i][j]) + (0.2 * tempGreen[i][j]) + (0.8 * tempBlue[i][j]));
         }
     }
 }
