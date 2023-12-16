@@ -30,15 +30,21 @@ typedef struct tagBITMAPINFOHEADER {
     DWORD biClrUsed;
     DWORD biClrImportant;
 } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
+
+struct {
+    char* fileBuffer;
+    int bufferSize;
+    vector<vector<unsigned char>> redChannel;
+    vector<vector<unsigned char>> greenChannel;
+    vector<vector<unsigned char>> blueChannel;
+} Photo;
+
 #pragma pack(pop)
 
 int rows;
 int cols;
 long fileLength; //total length of the bmp file
 
-vector<vector<unsigned char>> redChannel;
-vector<vector<unsigned char>> greenChannel;
-vector<vector<unsigned char>> blueChannel;
 
 
 bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, int& bufferSize) {
@@ -76,14 +82,14 @@ void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
                 switch (k) {
                 case 0:
                     // fileReadBuffer[end - count] is the red value
-                    redChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.redChannel[i][j] = fileReadBuffer[end - count];
                     break;
                 case 1:
-                    greenChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.greenChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the green value
                     break;
                 case 2:
-                    blueChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.blueChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the blue value
                     break;
                 }
@@ -109,15 +115,15 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    fileBuffer[bufferSize - count] = redChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.redChannel[i][j];
                     // write red value in fileBuffer[bufferSize - count]
                     break;
                 case 1:
-                    fileBuffer[bufferSize - count] = greenChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.greenChannel[i][j];
                     // write green value in fileBuffer[bufferSize - count]
                     break;
                 case 2:
-                    fileBuffer[bufferSize - count] = blueChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.blueChannel[i][j];
                     // write blue value in fileBuffer[bufferSize - count]
                     break;
                 }
@@ -130,23 +136,21 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
 }
 
 int main(int argc, char* argv[]) {
-    char* fileBuffer;
-    int bufferSize;
-    if (!fillAndAllocate(fileBuffer, argv[1], rows, cols, bufferSize)) {
+    if (!fillAndAllocate(Photo.fileBuffer, argv[1], rows, cols, Photo.bufferSize)) {
         std::cout << "File read error" << std::endl;
         return 1;
     }
-
+    
     //Store each channel seperately
-    redChannel.resize(rows, vector<unsigned char>(cols));
-    greenChannel.resize(rows, vector<unsigned char>(cols));
-    blueChannel.resize(rows, vector<unsigned char>(cols));
-
+    Photo.redChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.greenChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.blueChannel.resize(rows, vector<unsigned char>(cols));
+    
     // read input file
-    getPixelsFromBMP24(fileLength, rows, cols, fileBuffer);
+    getPixelsFromBMP24(fileLength, rows, cols, Photo.fileBuffer);
     // apply filters
     // write output file
-    writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
+    writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
 
     return 0;
 }
