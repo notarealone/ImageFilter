@@ -102,15 +102,15 @@ void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
         for (int j = cols - 1; j >= 0; j--) {
             for (int k = 0; k < 3; k++) {
                 switch (k) {
-                case 0:
+                case RED:
                     // fileReadBuffer[end - count] is the red value
                     Photo.redChannel[i][j] = fileReadBuffer[end - count];
                     break;
-                case 1:
+                case GREEN:
                     Photo.greenChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the green value
                     break;
-                case 2:
+                case BLUE:
                     Photo.blueChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the blue value
                     break;
@@ -136,15 +136,15 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
         for (int j = cols - 1; j >= 0; j--) {   
             for (int k = 0; k < 3; k++) {
                 switch (k) {
-                case 0:
+                case RED:
                     fileBuffer[bufferSize - count] = Photo.redChannel[i][j];
                     // write red value in fileBuffer[bufferSize - count]
                     break;
-                case 1:
+                case GREEN:
                     fileBuffer[bufferSize - count] = Photo.greenChannel[i][j];
                     // write green value in fileBuffer[bufferSize - count]
                     break;
-                case 2:
+                case BLUE:
                     fileBuffer[bufferSize - count] = Photo.blueChannel[i][j];
                     // write blue value in fileBuffer[bufferSize - count]
                     break;
@@ -166,17 +166,17 @@ void verticalMirror(int rows, int cols){
         for (int j = 0; j < cols; j++) {   
             for(int k = 0; k < 3; k++){
                 switch (k) {
-                    case 0:
+                    case RED:
                         temp = Photo.redChannel[i][j];
                         Photo.redChannel[i][j] = Photo.redChannel[rows - i - 1][j];
                         Photo.redChannel[rows - i - 1][j] = temp;
                         break;
-                    case 1:
+                    case GREEN:
                         temp = Photo.greenChannel[i][j];
                         Photo.greenChannel[i][j] = Photo.greenChannel[rows - i - 1][j];
                         Photo.greenChannel[rows - i - 1][j] = temp;
                         break;
-                    case 2:
+                    case BLUE:
                         temp = Photo.blueChannel[i][j];
                         Photo.blueChannel[i][j] = Photo.blueChannel[rows - i - 1][j];
                         Photo.blueChannel[rows - i - 1][j] = temp;
