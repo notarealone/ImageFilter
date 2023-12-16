@@ -47,6 +47,10 @@ struct {
 
 #pragma pack(pop)
 
+//Declaring a filter for furthur use
+int gaussianBlur[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+float gaussianBlurCoef = 0.0625;
+
 int rows;
 int cols;
 long fileLength; //total length of the bmp file
@@ -151,6 +155,107 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
     write.write(fileBuffer, bufferSize);
 }
 
+void verticalMirror(int rows, int cols, int channel){
+    unsigned char temp;
+    for (int i = 0; i < (rows/2) ; i++) {
+        for (int j = 0; j < cols; j++) {   
+            switch (channel) {
+                case RED:
+                    temp = Photo.redChannel[i][j];
+                    Photo.redChannel[i][j] = Photo.redChannel[rows - i - 1][j];
+                    Photo.redChannel[rows - i - 1][j] = temp;
+                    break;
+                case GREEN:
+                    temp = Photo.greenChannel[i][j];
+                    Photo.greenChannel[i][j] = Photo.greenChannel[rows - i - 1][j];
+                    Photo.greenChannel[rows - i - 1][j] = temp;
+                    break;
+                case BLUE:
+                    temp = Photo.blueChannel[i][j];
+                    Photo.blueChannel[i][j] = Photo.blueChannel[rows - i - 1][j];
+                    Photo.blueChannel[rows - i - 1][j] = temp;
+                    break;
+            }
+        }
+    }
+}
+
+void edgeHandler(int rows, int cols){
+    for(int i = 0; i < rows; i++){
+        if(i == 0){
+            Photo.redChannel[i] = Photo.redChannel[i+1];
+            Photo.greenChannel[i] = Photo.greenChannel[i+1];
+            Photo.blueChannel[i] = Photo.blueChannel[i+1];
+        }
+        else if(i == rows-1){
+            Photo.redChannel[i] = Photo.redChannel[i-1];
+            Photo.greenChannel[i] = Photo.greenChannel[i-1];
+            Photo.blueChannel[i] = Photo.blueChannel[i-1];
+        }
+        else {
+            Photo.redChannel[i][0] = Photo.redChannel[i][1];
+            Photo.redChannel[i][cols-1] = Photo.redChannel[i][cols-2];
+            Photo.greenChannel[i][0] = Photo.greenChannel[i][1];
+            Photo.greenChannel[i][cols-1] = Photo.greenChannel[i][cols-2];
+            Photo.blueChannel[i][0] = Photo.blueChannel[i][1];
+            Photo.blueChannel[i][cols-1] = Photo.blueChannel[i][cols-2];
+        }
+    }
+}
+
+//function written with a 3*3 kernel in mind
+void applyKernel(int rows, int cols, int kernel[3][3], float norm, int channel){
+    
+    //make a copy of current channels
+    vector<vector<unsigned char>> tempChannel;
+    switch(channel){
+        case RED:
+            tempChannel = Photo.redChannel;
+        break;
+        case GREEN:
+            tempChannel = Photo.greenChannel;
+        break;
+        case BLUE:
+            tempChannel = Photo.blueChannel;
+        break;
+    }
+
+    for(int i = 1; i < rows - 1; i++){
+        for(int j = 1; j < cols - 1; j++){
+            float sum = 0;
+
+            for(int k = -1; k <= 1; k++){
+                for(int l = -1; l <= 1; l++){
+                    sum += tempChannel[i + k][j + l] * kernel[k + 1][l + 1] * norm;
+                }
+            }
+
+            //Check if the output of filter is still in bounderies of our pixels colors
+            sum = (sum < 0) ? 0 : (sum > 255) ? 255 : (sum);
+            
+            switch(channel){
+                case RED:
+                    Photo.redChannel[i][j] = static_cast<unsigned char>(sum);
+                break;
+                case GREEN:
+                    Photo.greenChannel[i][j] = static_cast<unsigned char>(sum);
+                break;
+                case BLUE:
+                    Photo.blueChannel[i][j] = static_cast<unsigned char>(sum);
+                break;
+            }
+        }
+    }
+    
+}
+
+void* parallelFlipFilter(void* arg){ //Flips the image, then applies the kernel
+    int channel_id = *((int*)arg);
+    verticalMirror(rows, cols, channel_id);
+    applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef, channel_id);
+    pthread_exit(NULL);
+}
+
 int main(int argc, char* argv[]) {
     pthread_t threads[NUM_OF_THREADS];
     vector<int> channels = {RED, GREEN, BLUE};
@@ -177,6 +282,18 @@ int main(int argc, char* argv[]) {
     }
 
     // apply filters
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        channels[i] = i;
+        int thread_status = pthread_create(&threads[i], NULL, parallelFlipFilter, (void*)&channels[i]);
+        if(thread_status){
+            cerr << "Error: Unable to create thread " << endl;
+            return 1;
+        }
+    }
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
+    edgeHandler(rows, cols);
     // write output file
     writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
 
