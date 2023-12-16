@@ -3,6 +3,11 @@
 #include <vector>
 #include <chrono>
 
+#define NUM_OF_THREADS 3
+#define RED 0
+#define GREEN 1
+#define BLUE 2
+
 using namespace std;
 
 typedef int LONG;
@@ -31,6 +36,21 @@ typedef struct tagBITMAPINFOHEADER {
     DWORD biClrUsed;
     DWORD biClrImportant;
 } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
+
+struct {
+    char* fileBuffer;
+    int bufferSize;
+    vector<vector<unsigned char>> redChannel;
+    vector<vector<unsigned char>> greenChannel;
+    vector<vector<unsigned char>> blueChannel;
+} Photo;
+
+struct {
+    vector<vector<unsigned char>> red;
+    vector<vector<unsigned char>> green;
+    vector<vector<unsigned char>> blue;
+} tempChannel;
+
 #pragma pack(pop)
 
 //Declaring a filter for furthur use
@@ -41,9 +61,7 @@ int rows;
 int cols;
 long fileLength; //total length of the bmp file
 
-vector<vector<unsigned char>> redChannel;
-vector<vector<unsigned char>> greenChannel;
-vector<vector<unsigned char>> blueChannel;
+
 
 bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, int& bufferSize) {
     std::ifstream file(fileName);
@@ -70,6 +88,12 @@ bool fillAndAllocate(char*& buffer, const char* fileName, int& rows, int& cols, 
     return true;
 }
 
+void allocChannels(){
+    Photo.redChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.greenChannel.resize(rows, vector<unsigned char>(cols));
+    Photo.blueChannel.resize(rows, vector<unsigned char>(cols));
+}
+
 void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
     int count = 1;
     int extra = cols % 4;
@@ -80,14 +104,14 @@ void getPixelsFromBMP24(int end, int rows, int cols, char* fileReadBuffer) {
                 switch (k) {
                 case 0:
                     // fileReadBuffer[end - count] is the red value
-                    redChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.redChannel[i][j] = fileReadBuffer[end - count];
                     break;
                 case 1:
-                    greenChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.greenChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the green value
                     break;
                 case 2:
-                    blueChannel[i][j] = fileReadBuffer[end - count];
+                    Photo.blueChannel[i][j] = fileReadBuffer[end - count];
                     // fileReadBuffer[end - count] is the blue value
                     break;
                 }
@@ -113,15 +137,15 @@ void writeOutBmp24(char* fileBuffer, const char* nameOfFileToCreate, int bufferS
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    fileBuffer[bufferSize - count] = redChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.redChannel[i][j];
                     // write red value in fileBuffer[bufferSize - count]
                     break;
                 case 1:
-                    fileBuffer[bufferSize - count] = greenChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.greenChannel[i][j];
                     // write green value in fileBuffer[bufferSize - count]
                     break;
                 case 2:
-                    fileBuffer[bufferSize - count] = blueChannel[i][j];
+                    fileBuffer[bufferSize - count] = Photo.blueChannel[i][j];
                     // write blue value in fileBuffer[bufferSize - count]
                     break;
                 }
@@ -143,19 +167,19 @@ void verticalMirror(int rows, int cols){
             for(int k = 0; k < 3; k++){
                 switch (k) {
                     case 0:
-                        temp = redChannel[i][j];
-                        redChannel[i][j] = redChannel[rows - i - 1][j];
-                        redChannel[rows - i - 1][j] = temp;
+                        temp = Photo.redChannel[i][j];
+                        Photo.redChannel[i][j] = Photo.redChannel[rows - i - 1][j];
+                        Photo.redChannel[rows - i - 1][j] = temp;
                         break;
                     case 1:
-                        temp = greenChannel[i][j];
-                        greenChannel[i][j] = greenChannel[rows - i - 1][j];
-                        greenChannel[rows - i - 1][j] = temp;
+                        temp = Photo.greenChannel[i][j];
+                        Photo.greenChannel[i][j] = Photo.greenChannel[rows - i - 1][j];
+                        Photo.greenChannel[rows - i - 1][j] = temp;
                         break;
                     case 2:
-                        temp = blueChannel[i][j];
-                        blueChannel[i][j] = blueChannel[rows - i - 1][j];
-                        blueChannel[rows - i - 1][j] = temp;
+                        temp = Photo.blueChannel[i][j];
+                        Photo.blueChannel[i][j] = Photo.blueChannel[rows - i - 1][j];
+                        Photo.blueChannel[rows - i - 1][j] = temp;
                         break;
                 }
             }
@@ -166,22 +190,22 @@ void verticalMirror(int rows, int cols){
 void edgeHandler(int rows, int cols){
     for(int i = 0; i < rows; i++){
         if(i == 0){
-            redChannel[i] = redChannel[i+1];
-            greenChannel[i] = greenChannel[i+1];
-            blueChannel[i] = blueChannel[i+1];
+            Photo.redChannel[i] = Photo.redChannel[i+1];
+            Photo.greenChannel[i] = Photo.greenChannel[i+1];
+            Photo.blueChannel[i] = Photo.blueChannel[i+1];
         }
         else if(i == rows-1){
-            redChannel[i] = redChannel[i-1];
-            greenChannel[i] = greenChannel[i-1];
-            blueChannel[i] = blueChannel[i-1];
+            Photo.redChannel[i] = Photo.redChannel[i-1];
+            Photo.greenChannel[i] = Photo.greenChannel[i-1];
+            Photo.blueChannel[i] = Photo.blueChannel[i-1];
         }
         else {
-            redChannel[i][0] = redChannel[i][1];
-            redChannel[i][cols-1] = redChannel[i][cols-2];
-            greenChannel[i][0] = greenChannel[i][1];
-            greenChannel[i][cols-1] = greenChannel[i][cols-2];
-            blueChannel[i][0] = blueChannel[i][1];
-            blueChannel[i][cols-1] = blueChannel[i][cols-2];
+            Photo.redChannel[i][0] = Photo.redChannel[i][1];
+            Photo.redChannel[i][cols-1] = Photo.redChannel[i][cols-2];
+            Photo.greenChannel[i][0] = Photo.greenChannel[i][1];
+            Photo.greenChannel[i][cols-1] = Photo.greenChannel[i][cols-2];
+            Photo.blueChannel[i][0] = Photo.blueChannel[i][1];
+            Photo.blueChannel[i][cols-1] = Photo.blueChannel[i][cols-2];
         }
     }
 }
@@ -190,7 +214,7 @@ void edgeHandler(int rows, int cols){
 void applyKernel(int rows, int cols, int kernel[3][3], float norm){
     
     //make a copy of current channels
-    vector<vector<unsigned char>> tempRed = redChannel, tempGreen = greenChannel, tempBlue = blueChannel;
+    vector<vector<unsigned char>> tempRed = Photo.redChannel, tempGreen = Photo.greenChannel, tempBlue = Photo.blueChannel;
 
     for(int i = 1; i < rows - 1; i++){
         for(int j = 1; j < cols - 1; j++){
@@ -209,9 +233,9 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm){
             sumGreen = (sumGreen < 0) ? 0 : (sumGreen > 255) ? 255 : (sumGreen);
             sumBlue = (sumBlue < 0) ? 0 : (sumBlue > 255) ? 255 : (sumBlue);
             
-            redChannel[i][j] = static_cast<unsigned char>(sumRed);
-            greenChannel[i][j] = static_cast<unsigned char>(sumGreen);
-            blueChannel[i][j] = static_cast<unsigned char>(sumBlue);
+            Photo.redChannel[i][j] = static_cast<unsigned char>(sumRed);
+            Photo.greenChannel[i][j] = static_cast<unsigned char>(sumGreen);
+            Photo.blueChannel[i][j] = static_cast<unsigned char>(sumBlue);
         }
     }
     edgeHandler(rows, cols);
@@ -219,14 +243,16 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm){
 
 
 void purpleHaze(int rows, int cols){
-    vector<vector<unsigned char>> tempRed = redChannel, tempGreen = greenChannel, tempBlue = blueChannel;
+    tempChannel.red = Photo.redChannel;
+    tempChannel.green = Photo.greenChannel;
+    tempChannel.blue = Photo.blueChannel;
 
     for(int i = 0; i < rows; i++){
         for(int j = 0; j < cols; j++){
             //This formula is different that what the description said, but it works better!
-            redChannel[i][j] = min(255.0 , (0.5 * tempRed[i][j]) + (0.3 * tempGreen[i][j]) + (0.5 * tempBlue[i][j]));
-            greenChannel[i][j] = min(255.0, (0.16 * tempRed[i][j]) + (0.5 * tempGreen[i][j]) + (0.16 * tempBlue[i][j]));
-            blueChannel[i][j] = min(255.0 ,(0.6 * tempRed[i][j]) + (0.2 * tempGreen[i][j]) + (0.8 * tempBlue[i][j]));
+            Photo.redChannel[i][j] = min(255.0 , (0.5 * tempChannel.red[i][j]) + (0.3 * tempChannel.green[i][j]) + (0.5 * tempChannel.blue[i][j]));
+            Photo.greenChannel[i][j] = min(255.0, (0.16 * tempChannel.red[i][j]) + (0.5 * tempChannel.green[i][j]) + (0.16 * tempChannel.blue[i][j]));
+            Photo.blueChannel[i][j] = min(255.0 ,(0.6 * tempChannel.red[i][j]) + (0.2 * tempChannel.green[i][j]) + (0.8 * tempChannel.blue[i][j]));
         }
     }
 }
@@ -237,21 +263,19 @@ void drawDiagonalLines(int rows, int cols){
         for(int j = 0; j < cols; j++){
             if((i+j == rows) || (i+j == rows/2) || (i+j == rows + rows/2)){
                 // white color code -> 255
-                redChannel[i][j] = 255;
-                greenChannel[i][j] = 255;
-                blueChannel[i][j] = 255;
+                Photo.redChannel[i][j] = 255;
+                Photo.greenChannel[i][j] = 255;
+                Photo.blueChannel[i][j] = 255;
             }
         }
     }
 }
 
 int main(int argc, char* argv[]) {
-    char* fileBuffer;
-    int bufferSize;
 
     auto exec_start = chrono::high_resolution_clock::now();
 
-    if (!fillAndAllocate(fileBuffer, argv[1], rows, cols, bufferSize)) {
+    if (!fillAndAllocate(Photo.fileBuffer, argv[1], rows, cols, Photo.bufferSize)) {
         std::cout << "File read error" << std::endl;
         return 1;
     }
@@ -259,12 +283,10 @@ int main(int argc, char* argv[]) {
     auto fp_time = chrono::high_resolution_clock::now();
 
     //Store each channel seperately
-    redChannel.resize(rows, vector<unsigned char>(cols));
-    greenChannel.resize(rows, vector<unsigned char>(cols));
-    blueChannel.resize(rows, vector<unsigned char>(cols));
+    allocChannels();
 
     // read input file
-    getPixelsFromBMP24(fileLength, rows, cols, fileBuffer);
+    getPixelsFromBMP24(fileLength, rows, cols, Photo.fileBuffer);
 
     auto read_end = chrono::high_resolution_clock::now();
 
@@ -282,7 +304,7 @@ int main(int argc, char* argv[]) {
     auto draw_end = chrono::high_resolution_clock::now();
 
     // write output file
-    writeOutBmp24(fileBuffer, "output.bmp", bufferSize);
+    writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
     auto write_end = chrono::high_resolution_clock::now();
 
     chrono::duration<double, milli> read_time = read_end - fp_time;
