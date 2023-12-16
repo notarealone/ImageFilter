@@ -186,6 +186,12 @@ void verticalMirror(int rows, int cols, int channel){
     }
 }
 
+void* parallelFlip(void* arg){ //Flips the image, then applies the kernel
+    int channel_id = *((int*)arg);
+    verticalMirror(rows, cols, channel_id);
+    pthread_exit(NULL);
+}
+
 void edgeHandler(int rows, int cols){
     for(int i = 0; i < rows; i++){
         if(i == 0){
@@ -255,9 +261,8 @@ void applyKernel(int rows, int cols, int kernel[3][3], float norm, int channel){
     
 }
 
-void* parallelFlipFilter(void* arg){ //Flips the image, then applies the kernel
+void* parallelKernel(void* arg){
     int channel_id = *((int*)arg);
-    verticalMirror(rows, cols, channel_id);
     applyKernel(rows, cols, gaussianBlur, gaussianBlurCoef, channel_id);
     pthread_exit(NULL);
 }
@@ -303,10 +308,14 @@ int main(int argc, char* argv[]) {
     pthread_t threads[NUM_OF_THREADS];
     vector<int> channels = {RED, GREEN, BLUE};
 
+    auto exec_start = chrono::high_resolution_clock::now();
+
     if (!fillAndAllocate(Photo.fileBuffer, argv[1], rows, cols, Photo.bufferSize)) {
         std::cout << "File read error" << std::endl;
         return 1;
     }
+
+    auto fp_time = chrono::high_resolution_clock::now();
     
     //Store each channel seperately
     allocChannels();
@@ -324,10 +333,26 @@ int main(int argc, char* argv[]) {
         pthread_join(threads[i], NULL);
     }
 
+    auto read_end = chrono::high_resolution_clock::now();
+
     // flip the image and apply kernel
     for(int i = 0; i < NUM_OF_THREADS; i++){
         channels[i] = i;
-        int thread_status = pthread_create(&threads[i], NULL, parallelFlipFilter, (void*)&channels[i]);
+        int thread_status = pthread_create(&threads[i], NULL, parallelFlip, (void*)&channels[i]);
+        if(thread_status){
+            cerr << "Error: Unable to create thread " << endl;
+            return 1;
+        }
+    }
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
+
+    auto flip_end = chrono::high_resolution_clock::now();
+
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        channels[i] = i;
+        int thread_status = pthread_create(&threads[i], NULL, parallelKernel, (void*)&channels[i]);
         if(thread_status){
             cerr << "Error: Unable to create thread " << endl;
             return 1;
@@ -337,6 +362,8 @@ int main(int argc, char* argv[]) {
         pthread_join(threads[i], NULL);
     }
     edgeHandler(rows, cols);
+
+    auto kernel_end = chrono::high_resolution_clock::now();
 
     // copy current state of channels
     for(int i = 0; i < 3; i++){
@@ -357,10 +384,30 @@ int main(int argc, char* argv[]) {
     for(int i = 0; i < NUM_OF_THREADS; i++){
         pthread_join(threads[i], NULL);
     }
+
+    auto haze_end = chrono::high_resolution_clock::now();
+
     // draw diagonal lines (No parallelism in this part)
     drawDiagonalLines(rows, cols);
+
+    auto draw_end = chrono::high_resolution_clock::now();
+
     // write output file (No parallelism in this part)
     writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
+
+    auto write_end = chrono::high_resolution_clock::now();
+
+    chrono::duration<double, milli> read_time = read_end - fp_time;
+    chrono::duration<double, milli> flip_time = flip_end - read_end;
+    chrono::duration<double, milli> kernel_time = kernel_end - flip_end;
+    chrono::duration<double, milli> haze_time = haze_end - kernel_end;
+    chrono::duration<double, milli> draw_time = draw_end - haze_end;
+    chrono::duration<double, milli> write_time = write_end - draw_end;
+    chrono::duration<double, milli> total_time = write_end - exec_start;
+
+    cout << "Read : " << read_time.count() << " ms" << endl << "Flip : " << flip_time.count() << " ms" << endl
+        << "Blur : " << kernel_time.count() << " ms" << endl << "Purple : " << haze_time.count() << " ms" << endl
+        << "Lines : " << draw_time.count() << " ms" << endl << "Execution : " << total_time.count() << " ms" << endl;
 
     return 0;
 }
