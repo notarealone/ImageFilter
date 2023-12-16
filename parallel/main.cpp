@@ -45,6 +45,12 @@ struct {
     vector<vector<unsigned char>> blueChannel;
 } Photo;
 
+struct {
+    vector<vector<unsigned char>> red;
+    vector<vector<unsigned char>> green;
+    vector<vector<unsigned char>> blue;
+} tempChannel;
+
 #pragma pack(pop)
 
 //Declaring a filter for furthur use
@@ -256,6 +262,30 @@ void* parallelFlipFilter(void* arg){ //Flips the image, then applies the kernel
     pthread_exit(NULL);
 }
 
+void purpleHaze(int rows, int cols, int channel){
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            switch(channel){
+                case RED:
+                    Photo.redChannel[i][j] = min(255.0 , (0.5 * tempChannel.red[i][j]) + (0.3 * tempChannel.green[i][j]) + (0.5 * tempChannel.blue[i][j]));
+                    break;
+                case GREEN:
+                    Photo.greenChannel[i][j] = min(255.0, (0.16 * tempChannel.red[i][j]) + (0.5 * tempChannel.green[i][j]) + (0.16 * tempChannel.blue[i][j]));
+                    break;
+                case BLUE:
+                    Photo.blueChannel[i][j] = min(255.0 ,(0.6 * tempChannel.red[i][j]) + (0.2 * tempChannel.green[i][j]) + (0.8 * tempChannel.blue[i][j]));
+                    break;
+            }
+        }
+    }
+}
+
+void* parallelPuprleHaze(void* arg){
+    int channel_id = *((int*)arg);
+    purpleHaze(rows, cols, channel_id);
+    pthread_exit(NULL);
+}
+
 int main(int argc, char* argv[]) {
     pthread_t threads[NUM_OF_THREADS];
     vector<int> channels = {RED, GREEN, BLUE};
@@ -281,7 +311,7 @@ int main(int argc, char* argv[]) {
         pthread_join(threads[i], NULL);
     }
 
-    // apply filters
+    // flip the image and apply kernel
     for(int i = 0; i < NUM_OF_THREADS; i++){
         channels[i] = i;
         int thread_status = pthread_create(&threads[i], NULL, parallelFlipFilter, (void*)&channels[i]);
@@ -294,6 +324,28 @@ int main(int argc, char* argv[]) {
         pthread_join(threads[i], NULL);
     }
     edgeHandler(rows, cols);
+
+    // copy current state of channels
+    for(int i = 0; i < 3; i++){
+        tempChannel.red = Photo.redChannel;
+        tempChannel.green = Photo.greenChannel;
+        tempChannel.blue = Photo.blueChannel;
+    }
+
+    // apply purple haze effect
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        channels[i] = i;
+        int thread_status = pthread_create(&threads[i], NULL, parallelPuprleHaze, (void*)&channels[i]);
+        if(thread_status){
+            cerr << "Error: Unable to create thread " << endl;
+            return 1;
+        }
+    }
+    for(int i = 0; i < NUM_OF_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
+
+
     // write output file
     writeOutBmp24(Photo.fileBuffer, "output.bmp", Photo.bufferSize);
 
